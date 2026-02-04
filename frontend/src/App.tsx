@@ -1,9 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom'; // Import router components
-import Menu from './components/Menu';
 import Tables from './components/Tables';
-import OrderCart from './components/OrderCart';
-import CustomerOrderStatus from './components/CustomerOrderStatus';
 import KitchenView from './components/KitchenView';
 import ManagerDashboard from './components/ManagerDashboard';
 import TableCustomerView from './components/TableCustomerView'; // Import TableCustomerView

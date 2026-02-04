@@ -17,11 +17,11 @@ app.use(cors({
   origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
-})); // Use cors middleware
+}));
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*', // Adjust as necessary for your frontend URL
+    origin: '*',
     methods: ['GET', 'POST']
   }
 });
@@ -54,11 +54,11 @@ io.on('connection', (socket) => {
   });
 });
 
-app.use('/api/menu_items', menuItemsRoutes(io, pool)); // Pass io and pool
-app.use('/api/tables', tablesRoutes(io, pool)); // Pass io and pool
-app.use('/api/orders', ordersRoutes(io, pool)); // Pass io and pool
+app.use('/api/menu_items', menuItemsRoutes(io, pool));
+app.use('/api/tables', tablesRoutes(io, pool));
+app.use('/api/orders', ordersRoutes(io, pool));
 app.use('/api/order_items', orderItemsRoutes(io, pool));
-app.use('/api/statistics', statisticsRoutes(io, pool)); // Pass io and pool
+app.use('/api/statistics', statisticsRoutes(io, pool));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
