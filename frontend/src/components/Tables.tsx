@@ -88,7 +88,7 @@ const Tables: React.FC = () => {
         {tables.map((table) => (
           <div key={table.id} className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-xl font-semibold text-gray-800">Table {table.id}</h3>
-            <p className="text-gray-600 mt-2">QR Code: {table.qr_code}</p>
+
             <div className="mt-4">
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
                 table.status === 'available' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
@@ -99,13 +99,18 @@ const Tables: React.FC = () => {
             <Dialog open={isQrDialogOpen && selectedTableId === table.id} onOpenChange={setIsQrDialogOpen}>
               <DialogTrigger asChild>
                 <button
-                  className="mt-4 inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  className={`mt-4 inline-block font-bold py-2 px-4 rounded ${
+                    table.status === 'occupied'
+                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                      : 'bg-blue-500 hover:bg-blue-700 text-white'
+                  }`}
                   onClick={() => {
                     setSelectedTableId(table.id);
                     setIsQrDialogOpen(true);
                   }}
+                  disabled={table.status === 'occupied'}
                 >
-                  Show QR Code
+                  {table.status === 'occupied' ? 'Table Occupied' : 'Show QR Code'}
                 </button>
               </DialogTrigger>
               <DialogContent>
