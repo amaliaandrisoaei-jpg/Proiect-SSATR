@@ -5,16 +5,20 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate:up": "node-pg-migrate --dir migrations --databaseUrl $DATABASE_URL up",
+    "migrate:create": "node-pg-migrate create --dir migrations",
+    "seed": "node seed.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "node-pg-migrate": "^8.0.4",
     "nodemon": "^3.1.11",
     "pg": "^8.18.0",
     "socket.io": "^4.8.3"

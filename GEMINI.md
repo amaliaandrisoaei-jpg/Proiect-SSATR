@@ -49,29 +49,7 @@ The system will follow a client-server architecture:
 *   **Backend (Node.js/Express):** This will be the central hub, exposing RESTful API endpoints for actions like placing orders, fetching menu items, and updating user data. It will also manage WebSocket connections via Socket.IO to push real-time updates to connected clients (e.g., new orders to the kitchen, status changes to customers, live stats to managers).
 *   **Database (PostgreSQL):** The backend will connect to a PostgreSQL database to persist all application data.
 
-## Initial Setup Instructions (Summary)
 
-1.  **Create Project Root:** `mkdir restaurant-order-system && cd restaurant-order-system`
-2.  **Backend Setup:**
-    *   `mkdir backend && cd backend`
-    *   `npm init -y`
-    *   `npm install express pg socket.io dotenv cors nodemon`
-    *   Create `server.js` (as provided in previous instructions).
-    *   Create `.env` file with PostgreSQL credentials and port.
-    *   Add `dev` script to `package.json` for `nodemon`.
-3.  **Frontend Setup:**
-    *   `cd ..` (back to project root)
-    *   `npm create vite@latest frontend -- --template react`
-    *   `cd frontend && npm install`
-    *   `npm install socket.io-client`
-    *   `npm install -D tailwindcss postcss autoprefixer && npx tailwindcss init -p`
-    *   Configure `tailwind.config.js` and `src/index.css` (as provided).
-    *   Update `src/App.jsx` for basic Socket.IO testing.
-4.  **PostgreSQL Setup:**
-    *   Ensure PostgreSQL is installed and running.
-    *   Create a database named `restaurantdb`.
-    *   (Optional) Create a dedicated database user.
-    *   Update `backend/.env` with your PostgreSQL credentials.
 
 ## Guidance for Beginners
 

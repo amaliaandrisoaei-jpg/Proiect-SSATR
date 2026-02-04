@@ -17,6 +17,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - /app/node_modules # Anonymous volume to prevent host node_modules from overriding container's
     ports:
       - "3000:3000"
     environment:
@@ -30,10 +33,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Anonymous volume to prevent host node_modules from overriding container's
     ports:
       - "5173:5173"
     environment:
       VITE_BACKEND_URL: http://localhost:3000
+      HMR_HOST: localhost
+      HMR_PORT: 5173
     depends_on:
       - backend
     restart: always

@@ -1,10 +1,23 @@
 
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const { Pool } = require('pg');
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import pg from 'pg';
+import cors from 'cors'; // Import cors
+import menuItemsRoutes from './routes/menuItems.js'; // Import router function
+import tablesRoutes from './routes/tables.js'; // Import router function
+import ordersRoutes from './routes/orders.js'; // Import router function
+import orderItemsRoutes from './routes/orderItems.js'; // Import router function
+import statisticsRoutes from './routes/statistics.js'; // Import router function
+
+const { Pool } = pg;
 
 const app = express();
+app.use(cors({
+  origin: '*',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+})); // Use cors middleware
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -40,6 +53,12 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
   });
 });
+
+app.use('/api/menu_items', menuItemsRoutes(io, pool)); // Pass io and pool
+app.use('/api/tables', tablesRoutes(io, pool)); // Pass io and pool
+app.use('/api/orders', ordersRoutes(io, pool)); // Pass io and pool
+app.use('/api/order_items', orderItemsRoutes(io, pool));
+app.use('/api/statistics', statisticsRoutes(io, pool)); // Pass io and pool
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
