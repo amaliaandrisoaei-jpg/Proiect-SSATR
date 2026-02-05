@@ -3,12 +3,12 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import pg from 'pg';
-import cors from 'cors'; // Import cors
-import menuItemsRoutes from './routes/menuItems.js'; // Import router function
-import tablesRoutes from './routes/tables.js'; // Import router function
-import ordersRoutes from './routes/orders.js'; // Import router function
-import orderItemsRoutes from './routes/orderItems.js'; // Import router function
-import statisticsRoutes from './routes/statistics.js'; // Import router function
+import cors from 'cors'; 
+import menuItemsRoutes from './routes/menuItems.js'; 
+import tablesRoutes from './routes/tables.js'; 
+import ordersRoutes from './routes/orders.js'; 
+import orderItemsRoutes from './routes/orderItems.js'; 
+import statisticsRoutes from './routes/statistics.js'; 
 
 const { Pool } = pg;
 
