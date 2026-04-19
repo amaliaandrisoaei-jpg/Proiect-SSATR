@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --setupFiles=dotenv/config --setupFilesAfterEnv=./tests/setup.js",
     "migrate:up": "node-pg-migrate --dir migrations --databaseUrl $DATABASE_URL up",
     "migrate:create": "node-pg-migrate create --dir migrations",
     "seed": "node seed.js"
