@@ -1,14 +1,14 @@
 // backend/routes/orderItems.js
 import express from 'express';
 
-export default function(io, pool) {
+export default function(orderItemService) {
     const router = express.Router();
 
     // GET all order items
     router.get('/', async (req, res) => {
         try {
-            const result = await pool.query('SELECT * FROM order_items ORDER BY id');
-            res.json(result.rows);
+            const items = await orderItemService.getAllOrderItems();
+            res.json(items);
         } catch (err) {
             console.error('Error fetching order items:', err);
             res.status(500).json({ error: 'Internal Server Error' });
@@ -19,9 +19,9 @@ export default function(io, pool) {
     router.get('/:id', async (req, res) => {
         const { id } = req.params;
         try {
-            const result = await pool.query('SELECT * FROM order_items WHERE id = $1', [id]);
-            if (result.rows.length > 0) {
-                res.json(result.rows[0]);
+            const item = await orderItemService.getOrderItemById(id);
+            if (item) {
+                res.json(item);
             } else {
                 res.status(404).json({ error: 'Order item not found' });
             }
@@ -33,13 +33,9 @@ export default function(io, pool) {
 
     // POST create a new order item
     router.post('/', async (req, res) => {
-        const { order_id, menu_item_id, quantity, price, notes } = req.body;
         try {
-            const result = await pool.query(
-                'INSERT INTO order_items (order_id, menu_item_id, quantity, price, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-                [order_id, menu_item_id, quantity, price, notes]
-            );
-            res.status(201).json(result.rows[0]);
+            const newItem = await orderItemService.createOrderItem(req.body);
+            res.status(201).json(newItem);
         } catch (err) {
             console.error('Error creating order item:', err);
             res.status(500).json({ error: 'Internal Server Error' });
@@ -49,14 +45,10 @@ export default function(io, pool) {
     // PUT update an existing order item
     router.put('/:id', async (req, res) => {
         const { id } = req.params;
-        const { order_id, menu_item_id, quantity, price, notes } = req.body;
         try {
-            const result = await pool.query(
-                'UPDATE order_items SET order_id = $1, menu_item_id = $2, quantity = $3, price = $4, notes = $5, updated_at = current_timestamp WHERE id = $6 RETURNING *',
-                [order_id, menu_item_id, quantity, price, notes, id]
-            );
-            if (result.rows.length > 0) {
-                res.json(result.rows[0]);
+            const updatedItem = await orderItemService.updateOrderItem(id, req.body);
+            if (updatedItem) {
+                res.json(updatedItem);
             } else {
                 res.status(404).json({ error: 'Order item not found' });
             }
@@ -70,8 +62,8 @@ export default function(io, pool) {
     router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         try {
-            const result = await pool.query('DELETE FROM order_items WHERE id = $1 RETURNING *', [id]);
-            if (result.rows.length > 0) {
+            const deletedItem = await orderItemService.deleteOrderItem(id);
+            if (deletedItem) {
                 res.status(204).send(); // No content
             } else {
                 res.status(404).json({ error: 'Order item not found' });

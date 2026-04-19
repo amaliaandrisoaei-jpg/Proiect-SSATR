@@ -1,14 +1,14 @@
 // backend/routes/tables.js
 import express from 'express';
 
-export default function(io, pool) {
+export default function(tableService) {
     const router = express.Router();
 
     // GET all tables
     router.get('/', async (req, res) => {
         try {
-            const result = await pool.query('SELECT * FROM tables ORDER BY id');
-            res.json(result.rows);
+            const tables = await tableService.getAllTables();
+            res.json(tables);
         } catch (err) {
             console.error('Error fetching tables:', err);
             res.status(500).json({ error: 'Internal Server Error' });
@@ -19,9 +19,9 @@ export default function(io, pool) {
     router.get('/:id', async (req, res) => {
         const { id } = req.params;
         try {
-            const result = await pool.query('SELECT * FROM tables WHERE id = $1', [id]);
-            if (result.rows.length > 0) {
-                res.json(result.rows[0]);
+            const table = await tableService.getTableById(id);
+            if (table) {
+                res.json(table);
             } else {
                 res.status(404).json({ error: 'Table not found' });
             }
@@ -33,13 +33,9 @@ export default function(io, pool) {
 
     // POST create a new table
     router.post('/', async (req, res) => {
-        const { qr_code, status } = req.body;
         try {
-            const result = await pool.query(
-                'INSERT INTO tables (qr_code, status) VALUES ($1, $2) RETURNING *',
-                [qr_code, status]
-            );
-            res.status(201).json(result.rows[0]);
+            const newTable = await tableService.createTable(req.body);
+            res.status(201).json(newTable);
         } catch (err) {
             console.error('Error creating table:', err);
             res.status(500).json({ error: 'Internal Server Error' });
@@ -49,14 +45,10 @@ export default function(io, pool) {
     // PUT update an existing table
     router.put('/:id', async (req, res) => {
         const { id } = req.params;
-        const { qr_code, status } = req.body;
         try {
-            const result = await pool.query(
-                'UPDATE tables SET qr_code = $1, status = $2, updated_at = current_timestamp WHERE id = $3 RETURNING *',
-                [qr_code, status, id]
-            );
-            if (result.rows.length > 0) {
-                res.json(result.rows[0]);
+            const updatedTable = await tableService.updateTable(id, req.body);
+            if (updatedTable) {
+                res.json(updatedTable);
             } else {
                 res.status(404).json({ error: 'Table not found' });
             }
@@ -70,8 +62,8 @@ export default function(io, pool) {
     router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         try {
-            const result = await pool.query('DELETE FROM tables WHERE id = $1 RETURNING *', [id]);
-            if (result.rows.length > 0) {
+            const deletedTable = await tableService.deleteTable(id);
+            if (deletedTable) {
                 res.status(204).send(); // No content
             } else {
                 res.status(404).json({ error: 'Table not found' });
