@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --setupFiles=dotenv/config --setupFilesAfterEnv=./tests/setup.js",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "migrate:up": "node-pg-migrate --dir migrations --databaseUrl $DATABASE_URL up",
     "migrate:create": "node-pg-migrate create --dir migrations",
     "seed": "node seed.js"
@@ -26,6 +26,7 @@
   "devDependencies": {
     "cross-env": "^10.1.0",
     "jest": "^30.3.0",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2"
   }
 }
