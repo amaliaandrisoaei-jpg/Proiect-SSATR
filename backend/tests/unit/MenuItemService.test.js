@@ -65,6 +65,11 @@ describe('MenuItemService (unit)', () => {
             expect(result.price).toBe(12.0);
             expect(mockMenuItemModel.create).toHaveBeenCalledWith(newItem);
         });
+
+        test('returns a falsy model result untouched (no price parsing / no crash)', async () => {
+            mockMenuItemModel.create.mockResolvedValue(undefined);
+            expect(await menuItemService.createMenuItem({})).toBeUndefined();
+        });
     });
 
     describe('updateMenuItem', () => {

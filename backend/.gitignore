@@ -15,6 +15,7 @@ dist-ssr
 # Test artifacts
 coverage
 reports
+.stryker-tmp
 tests/.testcontainer-db-uri
 
 # Editor directories and files

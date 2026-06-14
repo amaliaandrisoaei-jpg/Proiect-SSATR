@@ -228,6 +228,16 @@ describe('OrderService (unit)', () => {
             expect(mockClient.release).toHaveBeenCalledTimes(1);
         });
 
+        test('propagates the original error when acquiring a client fails (no client to clean up)', async () => {
+            mockPool.connect.mockRejectedValue(new Error('connect fail'));
+
+            // With no client assigned, the `if (client)` guards in catch/finally must
+            // skip — otherwise we would throw a TypeError instead of the real error.
+            await expect(
+                orderService.createOrder(1, [{ menu_item_id: 1, quantity: 1 }])
+            ).rejects.toThrow('connect fail');
+        });
+
         // DEF-001
         test('a statistics broadcast failure does not reject createOrder', async () => {
             const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -263,7 +273,9 @@ describe('OrderService (unit)', () => {
             expect(result.total_amount).toBe(20.0);
             expect(mockTableModel.updateStatus).not.toHaveBeenCalled();
             expect(mockIo.emit).toHaveBeenCalledWith('orderStatusUpdate', expect.objectContaining({ status }));
-            expect(mockIo.emit).not.toHaveBeenCalledWith('tableStatusUpdate', expect.anything());
+            // No tableStatusUpdate at all — checked by event name so a null payload is also caught.
+            const tableEmits = mockIo.emit.mock.calls.filter((c) => c[0] === 'tableStatusUpdate');
+            expect(tableEmits).toHaveLength(0);
             expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
         });
 
@@ -315,13 +327,45 @@ describe('OrderService (unit)', () => {
             expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
         });
 
-        test('attaches parsed items to the updated order', async () => {
+        test('attaches parsed items to the updated order and opens a transaction', async () => {
             mockOrderModel.updateStatus.mockResolvedValue({ id: 8, table_id: 1, status: 'preparing', total_amount: '30.00' });
             mockOrderItemModel.findByOrderId.mockResolvedValue([{ id: 1, price: '15.00', quantity: 2 }]);
 
             const result = await orderService.updateOrderStatus(8, 'preparing');
 
             expect(result.items[0].price).toBe(15.0);
+            expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+        });
+
+        test('propagates the original error when acquiring a client fails', async () => {
+            mockPool.connect.mockRejectedValue(new Error('connect fail'));
+
+            await expect(orderService.updateOrderStatus(5, 'preparing')).rejects.toThrow('connect fail');
+        });
+
+        test('does not emit (or crash) when no io is configured', async () => {
+            const noIoService = new OrderService(
+                mockOrderModel, mockOrderItemModel, mockTableModel,
+                mockMenuItemModel, mockStatisticsService, null, mockPool
+            );
+            mockOrderModel.updateStatus.mockResolvedValue({ id: 5, table_id: 2, status: 'served', total_amount: '20.00' });
+            mockTableModel.updateStatus.mockResolvedValue({ id: 2, status: 'available' });
+
+            await expect(noIoService.updateOrderStatus(5, 'served')).resolves.toMatchObject({ status: 'served' });
+            expect(mockStatisticsService.emitStatistics).not.toHaveBeenCalled();
+        });
+
+        // DEF-001 (updateOrderStatus path)
+        test('a statistics broadcast failure does not reject updateOrderStatus', async () => {
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+            mockOrderModel.updateStatus.mockResolvedValue({ id: 5, table_id: 2, status: 'preparing', total_amount: '10.00' });
+            mockStatisticsService.emitStatistics.mockRejectedValue(new Error('stats boom'));
+
+            await expect(orderService.updateOrderStatus(5, 'preparing')).resolves.toMatchObject({ id: 5 });
+
+            await new Promise((resolve) => setImmediate(resolve));
+            expect(consoleSpy).toHaveBeenCalledWith('Failed to emit statistics update:', expect.any(Error));
+            consoleSpy.mockRestore();
         });
     });
 
