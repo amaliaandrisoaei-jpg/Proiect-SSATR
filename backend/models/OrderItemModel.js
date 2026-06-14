@@ -36,9 +36,13 @@ export default class OrderItemModel {
         return result.rows;
     }
 
-    async create(data, client) {
+    async create(data, client = null) {
+        // Falls back to the pool when no transaction client is supplied, so the
+        // standalone OrderItemService.createOrderItem path works as well as the
+        // transactional OrderService path (matches findById/findByOrderId).
+        const executor = client || this.pool;
         const { order_id, menu_item_id, quantity, price } = data;
-        const result = await client.query(
+        const result = await executor.query(
             'INSERT INTO order_items (order_id, menu_item_id, quantity, price) VALUES ($1, $2, $3, $4) RETURNING *',
             [order_id, menu_item_id, quantity, price]
         );

@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Test artifacts
+coverage
+reports
+tests/.testcontainer-db-uri
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

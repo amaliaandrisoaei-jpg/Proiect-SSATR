@@ -51,6 +51,13 @@ export default class OrderService {
     }
 
     async createOrder(table_id, items) {
+        // An order must contain at least one item. Without this guard an empty
+        // cart would persist a meaningless order (total 0) and still mark the
+        // table 'occupied' — corrupt state the frontend already forbids.
+        if (!Array.isArray(items) || items.length === 0) {
+            throw new Error('Cannot create an order with no items.');
+        }
+
         let client;
         try {
             client = await this.pool.connect();
@@ -98,7 +105,11 @@ export default class OrderService {
             if (this.io) {
                 this.io.emit('newOrder', resultOrder);
                 this.io.emit('tableStatusUpdate', updatedTable);
-                this.statisticsService.emitStatistics();
+                // Best-effort broadcast: a statistics failure must never crash the
+                // request path or surface as an unhandled promise rejection.
+                this.statisticsService.emitStatistics().catch((err) => {
+                    console.error('Failed to emit statistics update:', err);
+                });
             }
 
             return resultOrder;
@@ -132,18 +143,25 @@ export default class OrderService {
                 }))
             };
 
+            let freedTable = null;
             if (['served', 'completed', 'cancelled'].includes(status)) {
-                const updatedTable = await this.tableModel.updateStatus(resultOrder.table_id, 'available', client);
-                if (this.io) {
-                    this.io.emit('tableStatusUpdate', updatedTable);
-                }
+                freedTable = await this.tableModel.updateStatus(resultOrder.table_id, 'available', client);
             }
 
             await client.query('COMMIT');
 
+            // Emit only AFTER a durable COMMIT, so clients are never notified of
+            // state that a failed commit would have rolled back.
             if (this.io) {
+                if (freedTable) {
+                    this.io.emit('tableStatusUpdate', freedTable);
+                }
                 this.io.emit('orderStatusUpdate', resultOrder);
-                this.statisticsService.emitStatistics();
+                // Best-effort broadcast: a statistics failure must never crash the
+                // request path or surface as an unhandled promise rejection.
+                this.statisticsService.emitStatistics().catch((err) => {
+                    console.error('Failed to emit statistics update:', err);
+                });
             }
 
             return resultOrder;
