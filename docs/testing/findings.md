@@ -75,4 +75,28 @@ data points for the dissertation.
 - **Note:** event *names* and payloads are unchanged, so the frontend contract (`tableStatusUpdate`, `orderStatusUpdate`) is preserved; only the emit timing moved after the commit.
 - **Guarded by:** the unit test above plus the websocket suite asserting both events still fire on a terminal status.
 
+## DEF-005 — server crashes on every browser Socket.IO connection (polling double-response)
+
+- **Layer that caught it:** Playwright **E2E** (`e2e/tests/realtime-order.spec.ts`) — the first test that connects with a *real browser*. The backend container exited with `ERR_HTTP_HEADERS_SENT`.
+- **File:** `backend/server.js` (server/Socket.IO wiring).
+- **Symptom:** As soon as a browser opened a Socket.IO connection the API process crashed:
+  `Error [ERR_HTTP_HEADERS_SENT]: Cannot write headers after they are sent to the client` thrown from `engine.io .../transports/polling.js`. In Docker the container then exited (1).
+- **Root cause:** `server.js` did
+  ```js
+  const server = http.createServer();
+  const io = new Server(server);      // engine.io captures the server's request listeners NOW (there are none)
+  const app = createApp(pool, io);
+  server.on('request', app);          // Express added as a SECOND, parallel 'request' listener
+  ```
+  Socket.IO captures the existing `request` listeners *at attach time*. Because `io` attached before Express was added, Express became an independent second listener. For a **polling** transport request (`/socket.io/?...`), engine.io wrote the response **and** Express also ran (404) and tried to write again → headers-already-sent → crash. The websocket integration tests masked this because they forced `transports: ['websocket']`; a real browser **defaults to HTTP long-polling** before upgrading, so it crashed immediately. The deployed app would have crashed on the first client.
+- **Fix:** make Express *the* request handler first, then bind Socket.IO to that server. Extracted into `backend/createServer.js` so production and tests share identical wiring:
+  ```js
+  const io = new Server(ioOptions);     // detached
+  const app = createApp(pool, io);
+  const server = http.createServer(app); // Express is THE request listener
+  io.attach(server);                     // engine.io now captures Express and routes correctly
+  ```
+- **Guarded by:** the E2E real-time scenario (real browser, polling→websocket) **and** a new integration test *"a polling-transport client connects and receives newOrder without crashing the server"* that forces `transports: ['polling']` against the shared `createServer` wiring.
+- **Thesis note:** a textbook case of the test pyramid paying off — a defect invisible to unit, integration (as originally written) and even line/mutation coverage, surfaced only by a browser-level E2E exercising the real transport.
+
 <!-- New findings are appended below as they are discovered. -->

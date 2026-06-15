@@ -33,6 +33,7 @@ export default {
     coverageProvider: 'v8',
     collectCoverageFrom: [
         'app.js',
+        'createServer.js',
         'services/**/*.js',
         'models/**/*.js',
         'routes/**/*.js',

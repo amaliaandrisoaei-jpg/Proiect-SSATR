@@ -1,18 +1,16 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
-import http from 'http';
-import { Server } from 'socket.io';
 import { io as Client } from 'socket.io-client';
 import request from 'supertest';
-import { createApp } from '../../app.js';
+import { createServer } from '../../createServer.js';
 import { newTestPool, truncateAll } from '../helpers/db.js';
 import { insertTable, insertMenuItem, insertOrder } from '../helpers/fixtures.js';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Connects a fresh websocket client and resolves once connected. */
-function connectClient(url) {
+/** Connects a fresh client (websocket transport by default) and resolves once connected. */
+function connectClient(url, transports = ['websocket']) {
     return new Promise((resolve, reject) => {
-        const socket = new Client(url, { transports: ['websocket'], forceNew: true });
+        const socket = new Client(url, { transports, forceNew: true });
         const timer = setTimeout(() => reject(new Error('client connect timeout')), 4000);
         socket.once('connect', () => {
             clearTimeout(timer);
@@ -69,10 +67,9 @@ describe('Order WebSocket events (integration)', () => {
 
     beforeAll(async () => {
         pool = newTestPool();
-        server = http.createServer();
-        io = new Server(server);
-        app = createApp(pool, io);
-        server.on('request', app);
+        // Use the SAME wiring as production (server.js) so this suite also guards
+        // the Express + Socket.IO request-handling order (DEF-005).
+        ({ server, io, app } = createServer(pool));
 
         await new Promise((resolve) => {
             server.listen(0, () => {
@@ -195,5 +192,28 @@ describe('Order WebSocket events (integration)', () => {
 
         expect(a.received[0].payload.id).toBe(b.received[0].payload.id);
         expect(a.received[0].payload.total_amount).toBe(10.0);
+    }, 10000);
+
+    // DEF-005 regression guard: the browser default transport is HTTP long-polling.
+    // With the previous wiring this request path double-responded and crashed the
+    // server with ERR_HTTP_HEADERS_SENT.
+    test('a polling-transport client connects and receives newOrder without crashing the server', async () => {
+        const table = await insertTable(pool, { qr_code: 'ws-polling', status: 'available' });
+        const menuItem = await insertMenuItem(pool, { name: 'Poll Pie', price: 9.0 });
+
+        const pollingClient = await connectClient(url, ['polling']);
+        clients.push(pollingClient);
+        const collector = collectEvents(pollingClient, ['newOrder']);
+
+        await request(app)
+            .post('/api/orders')
+            .send({ table_id: table.id, items: [{ menu_item_id: menuItem.id, quantity: 1 }] })
+            .expect(201);
+
+        await collector.waitForCount(1);
+        collector.stop();
+
+        expect(pollingClient.io.engine.transport.name).toBe('polling');
+        expect(collector.received[0].payload.total_amount).toBe(9.0);
     }, 10000);
 });

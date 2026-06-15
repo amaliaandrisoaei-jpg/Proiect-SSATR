@@ -1,7 +1,5 @@
-import http from 'http';
-import { Server } from 'socket.io';
 import pg from 'pg';
-import { createApp } from './app.js';
+import { createServer } from './createServer.js';
 
 const { Pool } = pg;
 
@@ -9,16 +7,14 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-const server = http.createServer();
-const io = new Server(server, {
+// Express + Socket.IO are wired in createServer() so production and the websocket
+// tests share identical wiring (see createServer.js / DEF-005).
+const { server, io } = createServer(pool, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
   }
 });
-
-const app = createApp(pool, io);
-server.on('request', app);
 
 pool.connect((err, client, release) => {
   if (err) {
