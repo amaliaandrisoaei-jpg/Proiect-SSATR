@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Stage 1: lint backend + frontend ───────────────────────────────────────
+  lint:
+    name: Lint (backend + frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Backend lint
+        working-directory: backend
+        run: |
+          npm ci
+          npm run lint
+      - name: Frontend lint
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint
+
+  # ── Stage 2: backend unit tests (fast, mocked, no DB) ──────────────────────
+  backend-unit:
+    name: Backend unit tests
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: backend
+        run: npm ci
+      - name: Unit tests
+        working-directory: backend
+        run: npm run test:unit
+
+  # ── Stage 3: backend integration + coverage (Docker/Testcontainers) ────────
+  backend-integration:
+    name: Backend integration + coverage (Testcontainers)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: backend
+        run: npm ci
+      # Runs the full pyramid (unit + integration + websocket) against ONE
+      # ephemeral Postgres container started by Jest globalSetup, and enforces the
+      # coverage thresholds (lines/statements >= 80, branches >= 70, functions >= 80).
+      - name: Full suite with coverage
+        working-directory: backend
+        run: npm run test:coverage
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+
+  # ── Stage 4: frontend unit tests + coverage ────────────────────────────────
+  frontend-unit:
+    name: Frontend unit tests + coverage
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+      - name: Unit tests with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+  # ── Stage 5: build the Docker images ───────────────────────────────────────
+  build-images:
+    name: Build Docker images
+    needs: [backend-unit, backend-integration, frontend-unit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend & frontend images
+        run: docker compose -f docker-compose.e2e.yml build
+
+  # ── Stage 6: end-to-end against the full Dockerised stack ──────────────────
+  e2e:
+    name: End-to-end (Playwright vs Docker stack)
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Start the stack (migrate + seed + healthchecks)
+        run: docker compose -f docker-compose.e2e.yml up -d --build --wait
+      - name: Install Playwright + browser
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run E2E tests
+        working-directory: e2e
+        run: npm test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+      - name: Stack logs (on failure)
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --no-color
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v

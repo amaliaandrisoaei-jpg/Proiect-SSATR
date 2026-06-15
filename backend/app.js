@@ -1,7 +1,5 @@
 import express from 'express';
-import cors from 'cors'; 
-import { Server } from 'socket.io';
-import http from 'http';
+import cors from 'cors';
 
 // Import Models
 import MenuItemModel from './models/MenuItemModel.js';

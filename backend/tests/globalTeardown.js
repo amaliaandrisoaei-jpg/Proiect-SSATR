@@ -8,7 +8,6 @@ import { DB_URI_FILE } from './helpers/db.js';
 export default async function globalTeardown() {
     const container = globalThis.__POSTGRES_CONTAINER__;
     if (container) {
-        // eslint-disable-next-line no-console
         console.log('\n[testcontainers] Stopping PostgreSQL container…');
         await container.stop();
     }

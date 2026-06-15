@@ -21,7 +21,6 @@ export default async function globalSetup() {
     process.env.TESTCONTAINERS_RYUK_DISABLED = process.env.TESTCONTAINERS_RYUK_DISABLED ?? 'true';
 
     const t0 = Date.now();
-    // eslint-disable-next-line no-console
     console.log('\n[testcontainers] Starting ephemeral PostgreSQL container…');
 
     const container = await new PostgreSqlContainer('postgres:16-alpine')
@@ -63,6 +62,5 @@ export default async function globalSetup() {
     globalThis.__POSTGRES_CONTAINER__ = container;
 
     const safeUri = uri.replace(/:\/\/([^:]+):[^@]+@/, '://$1:****@');
-    // eslint-disable-next-line no-console
     console.log(`[testcontainers] Ready in ${Date.now() - t0} ms → ${safeUri}\n`);
 }
