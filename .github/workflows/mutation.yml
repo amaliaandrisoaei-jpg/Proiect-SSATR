@@ -1,0 +1,33 @@
+name: Mutation testing
+
+# Mutation testing is slow, so it runs on demand and on a weekly schedule rather
+# than on every push/PR.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1' # Mondays 03:00 UTC
+
+jobs:
+  mutation:
+    name: Stryker (backend services)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: backend
+        run: npm ci
+      # `break` threshold in stryker.config.mjs fails this job below the floor.
+      - name: Run Stryker
+        working-directory: backend
+        run: npm run test:mutation
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: backend/reports/mutation
